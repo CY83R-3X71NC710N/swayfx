@@ -106,8 +106,9 @@ jobs:
             # Package as .deb
             mkdir -p /workspaces/swayfx/debian/DEBIAN
             
-            # Define version variable
+            # Define version and architecture variables
             version="$(git describe --tags | sed 's/^v//')"
+            ARCH="${{ matrix.arch }}"
             
             # Create basic debian control file
             cat > /workspaces/swayfx/debian/DEBIAN/control << EOF
@@ -115,7 +116,7 @@ Package: swayfx
 Version: $version
 Section: x11
 Priority: optional
-Architecture: ${{ matrix.arch }}
+Architecture: $ARCH
 Depends: libc6, libcairo2, libgdk-pixbuf2.0-0, libglib2.0-0, libgdk-pixbuf-2.0-0, libjson-c5, libpango-1.0-0, libpangocairo-1.0-0, libpcre2-8-0, libwayland-client0, libwayland-cursor0, libwayland-server0, libwlroots10, libxkbcommon0, libpixman-1-0, libinput10
 Suggests: swaybg, swaylock, xdg-desktop-portal, xdg-desktop-portal-wlr
 Conflicts: sway
@@ -131,7 +132,6 @@ EOF
             
             # Create the .deb package
             mkdir -p /workspaces/swayfx/packages
-            ARCH="${{ matrix.arch }}"
             dpkg-deb --build /workspaces/swayfx/debian "/workspaces/swayfx/packages/swayfx_${version}_${ARCH}.deb"
             
       - name: Upload artifact
