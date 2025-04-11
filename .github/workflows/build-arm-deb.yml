@@ -111,7 +111,7 @@ jobs:
             ARCH="${{ matrix.arch }}"
             
             # Create basic debian control file
-            cat > /workspaces/swayfx/debian/DEBIAN/control << EOF
+            cat > /workspaces/swayfx/debian/DEBIAN/control << 'EOL'
 Package: swayfx
 Version: $version
 Section: x11
@@ -125,7 +125,7 @@ Maintainer: SwayFX Team <github.com/wlrfx/swayfx>
 Description: SwayFX - i3-compatible Wayland compositor with visual effects
  SwayFX is a fork of Sway, adding visual effects like blur, rounded corners, and shadows.
  It is a Wayland compositor and a drop-in replacement for the i3 window manager.
-EOF
+EOL
 
             # Install the files into the debian package directory structure
             DESTDIR=/workspaces/swayfx/debian ninja -C build/ install
@@ -133,7 +133,7 @@ EOF
             # Create the .deb package
             mkdir -p /workspaces/swayfx/packages
             dpkg-deb --build /workspaces/swayfx/debian "/workspaces/swayfx/packages/swayfx_${version}_${ARCH}.deb"
-            
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
