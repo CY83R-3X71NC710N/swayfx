@@ -111,7 +111,7 @@ jobs:
             ARCH="${{ matrix.arch }}"
             
             # Create basic debian control file
-            cat > /workspaces/swayfx/debian/DEBIAN/control << 'EOL'
+            cat > /workspaces/swayfx/debian/DEBIAN/control << EOL
 Package: swayfx
 Version: $version
 Section: x11
