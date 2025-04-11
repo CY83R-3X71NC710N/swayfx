@@ -106,10 +106,13 @@ jobs:
             # Package as .deb
             mkdir -p /workspaces/swayfx/debian/DEBIAN
             
+            # Define version variable
+            version="$(git describe --tags | sed 's/^v//')"
+            
             # Create basic debian control file
             cat > /workspaces/swayfx/debian/DEBIAN/control << EOF
 Package: swayfx
-Version: $(git describe --tags | sed 's/^v//')
+Version: $version
 Section: x11
 Priority: optional
 Architecture: ${{ matrix.arch }}
@@ -129,7 +132,6 @@ EOF
             # Create the .deb package
             mkdir -p /workspaces/swayfx/packages
             ARCH="${{ matrix.arch }}"
-            version="$(git describe --tags | sed 's/^v//')"
             dpkg-deb --build /workspaces/swayfx/debian "/workspaces/swayfx/packages/swayfx_${version}_${ARCH}.deb"
             
       - name: Upload artifact
