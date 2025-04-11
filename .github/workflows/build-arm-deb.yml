@@ -129,7 +129,8 @@ EOF
             # Create the .deb package
             mkdir -p /workspaces/swayfx/packages
             ARCH="${{ matrix.arch }}"
-            dpkg-deb --build /workspaces/swayfx/debian "/workspaces/swayfx/packages/swayfx_$(git describe --tags | sed 's/^v//')_${ARCH}.deb"
+            version="$(git describe --tags | sed 's/^v//')"
+            dpkg-deb --build /workspaces/swayfx/debian "/workspaces/swayfx/packages/swayfx_${version}_${ARCH}.deb"
             
       - name: Upload artifact
         uses: actions/upload-artifact@v3
