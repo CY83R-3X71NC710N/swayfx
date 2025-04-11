@@ -1,0 +1,144 @@
+name: Build ARM Debian Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [arm64]  # You can add armhf later if needed
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU for ARM emulation
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+
+      - name: Build Debian package
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: ${{ matrix.arch }}
+          distro: debian-bullseye
+          githubToken: ${{ github.token }}
+          
+          # Mount the repository into the container
+          dockerRunArgs: |
+            --volume "${PWD}:/workspaces/swayfx"
+          
+          # The shell to run commands with in the container
+          shell: /bin/bash
+          
+          # Install dependencies and build the package
+          run: |
+            set -e
+            cd /workspaces/swayfx
+            
+            # Install build dependencies
+            apt-get update
+            apt-get install -y --no-install-recommends \
+              build-essential \
+              cmake \
+              git \
+              meson \
+              ninja-build \
+              pkg-config \
+              wayland-protocols \
+              libwayland-dev \
+              libpcre2-dev \
+              libjson-c-dev \
+              libpango1.0-dev \
+              libcairo2-dev \
+              libgdk-pixbuf2.0-dev \
+              libxkbcommon-dev \
+              libinput-dev \
+              libevdev-dev \
+              libudev-dev \
+              libdbus-1-dev \
+              libseat-dev \
+              hwdata \
+              libsystemd-dev \
+              xwayland \
+              devscripts \
+              debhelper \
+              dpkg-dev \
+              libdrm-dev \
+              libgbm-dev \
+              libxcb-composite0-dev \
+              libxcb-xfixes0-dev \
+              libxcb-render0-dev \
+              libpixman-1-dev \
+              libwlroots-dev \
+              libsystemd-dev \
+              libseat-dev \
+              libvulkan-dev \
+              glslang-tools
+
+            # Clone and build scenefx (required for SwayFX)
+            cd /tmp
+            git clone https://github.com/wlrfx/scenefx.git
+            cd scenefx
+            meson setup build/ -Dexamples=false
+            ninja -C build/
+            ninja -C build/ install
+            ldconfig
+
+            # Clone SwayFX repository if we're not already building from it
+            cd /workspaces/swayfx
+            
+            # Build SwayFX
+            meson setup build/ -Dsd-bus-provider=libsystemd -Dwerror=false
+            ninja -C build/
+            
+            # Package as .deb
+            mkdir -p /workspaces/swayfx/debian/DEBIAN
+            
+            # Create basic debian control file
+            cat > /workspaces/swayfx/debian/DEBIAN/control << EOF
+Package: swayfx
+Version: $(git describe --tags | sed 's/^v//')
+Section: x11
+Priority: optional
+Architecture: ${{ matrix.arch }}
+Depends: libc6, libcairo2, libgdk-pixbuf2.0-0, libglib2.0-0, libgdk-pixbuf-2.0-0, libjson-c5, libpango-1.0-0, libpangocairo-1.0-0, libpcre2-8-0, libwayland-client0, libwayland-cursor0, libwayland-server0, libwlroots10, libxkbcommon0, libpixman-1-0, libinput10
+Suggests: swaybg, swaylock, xdg-desktop-portal, xdg-desktop-portal-wlr
+Conflicts: sway
+Provides: sway, x-window-manager, display-manager
+Maintainer: SwayFX Team <github.com/wlrfx/swayfx>
+Description: SwayFX - i3-compatible Wayland compositor with visual effects
+ SwayFX is a fork of Sway, adding visual effects like blur, rounded corners, and shadows.
+ It is a Wayland compositor and a drop-in replacement for the i3 window manager.
+EOF
+
+            # Install the files into the debian package directory structure
+            DESTDIR=/workspaces/swayfx/debian ninja -C build/ install
+            
+            # Create the .deb package
+            mkdir -p /workspaces/swayfx/packages
+            dpkg-deb --build /workspaces/swayfx/debian /workspaces/swayfx/packages/swayfx_$(git describe --tags | sed 's/^v//')_${{ matrix.arch }}.deb
+            
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: swayfx-${{ matrix.arch }}-deb
+          path: packages/*.deb
+          
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: packages/*.deb
+          token: ${{ secrets.GITHUB_TOKEN }}
